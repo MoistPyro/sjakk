@@ -1,4 +1,7 @@
-use std::fmt::{Debug, Display};
+use std::{
+    fmt::{Debug, Display},
+    io::{Error, ErrorKind},
+};
 
 const _WHITE_PIECES: &str = "♙♔♕♗♘♖";
 const _BLACK_PIECES: &str = "♟♚♛♝♞♜";
@@ -24,30 +27,6 @@ impl From<char> for PieceType {
             'R' | '♖' | '♜' => Self::Rook,
             _ => panic!(),
         }
-    }
-}
-
-impl From<&str> for PieceType {
-    fn from(value: &str) -> Self {
-        let mut piece: Option<PieceType> = None;
-
-        for symbol in "KQBNR".chars() {
-            if let Some(pos) = value.find(|s: char| s.is_uppercase() && s == symbol) {
-                piece = match pos {
-                    0 => Some(PieceType::from(symbol)),
-                    3 => Some(PieceType::Pawn),
-                    _ => panic!(),
-                }
-            }
-        }
-
-        if let None = piece {
-            piece = match value.find('O') {
-                Some(_) => Some(PieceType::King),
-                None => Some(PieceType::Pawn),
-            };
-        }
-        piece.unwrap()
     }
 }
 
@@ -77,6 +56,44 @@ impl Display for PieceType {
     }
 }
 
+impl PieceType {
+    pub fn from_notation<S>(value: S) -> Result<Self, Error>
+    where
+        S: AsRef<str>,
+    {
+        let mut piece: Option<PieceType> = None;
+
+        for symbol in "KQBNR".chars() {
+            if let Some(pos) = value
+                .as_ref()
+                .find(|s: char| s.is_uppercase() && s == symbol)
+            {
+                piece = match pos {
+                    0 => Some(PieceType::from(symbol)),
+                    3 => Some(PieceType::Pawn),
+                    _ => {
+                        return Err(Error::new(
+                            ErrorKind::InvalidInput,
+                            "not a valid chess move",
+                        ))
+                    }
+                }
+            }
+        }
+
+        if piece.is_none() {
+            piece = match value.as_ref().find('O') {
+                Some(_) => Some(PieceType::King),
+                None => Some(PieceType::Pawn),
+            };
+        }
+        piece.ok_or(Error::new(
+            ErrorKind::InvalidInput,
+            "not a valid chess move",
+        ))
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Colour {
     White,
@@ -101,21 +118,22 @@ pub enum Check {
     Mate,
 }
 
-impl From<&str> for Check {
-    fn from(value: &str) -> Self {
-        if value.ends_with('+') {
+impl Check {
+    pub fn from_notation<S>(value: S) -> Self
+    where
+        S: AsRef<str>,
+    {
+        if value.as_ref().ends_with('+') {
             Self::Check
-        } else if value.ends_with('#') {
+        } else if value.as_ref().ends_with('#') {
             Self::Mate
         } else {
             Self::No
         }
     }
-}
 
-impl From<Check> for bool {
-    fn from(value: Check) -> Self {
-        match value {
+    pub fn is_check_or_mate(self) -> bool {
+        match self {
             Check::No => false,
             _ => true,
         }
@@ -126,15 +144,23 @@ impl From<Check> for bool {
 pub enum Castle {
     #[default]
     No,
-    Short(PieceType),
-    Long(PieceType),
+    Short([i8; 2]),
+    Long([i8; 2]),
 }
 
-impl From<&str> for Castle {
-    fn from(value: &str) -> Self {
-        match value.chars().nth(0).unwrap() {
-            'O' if value.len() <= 3 => Castle::Short(PieceType::Rook),
-            'O' if value.len() > 3 => Castle::Long(PieceType::Rook),
+impl Castle {
+    pub fn from_notation<S, C>(value: S, colour: C) -> Self
+    where
+        S: AsRef<str>,
+        C: Into<Colour>,
+    {
+        let row: i8 = match colour.into() {
+            Colour::White => 0,
+            Colour::Black => 7,
+        };
+        match value.as_ref().chars().nth(0).unwrap() {
+            'O' if value.as_ref().len() <= 3 => Castle::Short([7, row]),
+            'O' if value.as_ref().len() > 3 => Castle::Long([0, row]),
             _ => Castle::No,
         }
     }
@@ -146,9 +172,12 @@ pub enum Capture {
     No,
 }
 
-impl From<&str> for Capture {
-    fn from(value: &str) -> Self {
-        match value.find('x') {
+impl Capture {
+    pub fn from_notation<S>(value: S) -> Self
+    where
+        S: AsRef<str>,
+    {
+        match value.as_ref().find('x') {
             Some(_) => Capture::Yes,
             None => Capture::No,
         }
@@ -161,12 +190,18 @@ pub enum Promotion {
     No,
 }
 
-impl From<&str> for Promotion {
-    fn from(value: &str) -> Self {
+impl Promotion {
+    pub fn from_notation<S>(value: S) -> Self
+    where
+        S: AsRef<str>,
+    {
         let mut piece = None;
 
         for symbol in "KQBNR".chars() {
-            if let Some(pos) = value.find(|s: char| s.is_uppercase() && s == symbol) {
+            if let Some(pos) = value
+                .as_ref()
+                .find(|s: char| s.is_uppercase() && s == symbol)
+            {
                 if pos == 3 {
                     piece = Some(PieceType::from(symbol))
                 };

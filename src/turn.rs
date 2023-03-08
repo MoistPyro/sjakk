@@ -7,24 +7,7 @@ use crate::types::{Capture, Castle, Check, Colour, PieceType, Promotion};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Turn {
-    pub value: [Move; 2],
-}
-
-impl From<&str> for Turn {
-    fn from(value: &str) -> Self {
-        const COLOURS: [char; 2] = ['w', 'b'];
-
-        let value: Result<Vec<Move>, Error> = value
-            .split(" ")
-            .zip(COLOURS)
-            .map(|(s, c)| Move::new_from_notation(s, c))
-            .collect();
-
-        let binding = value.unwrap();
-        let mut it = binding.iter();
-        let r: [Move; 2] = [*it.next().unwrap(), *it.next().unwrap()];
-        Self { value: r }
-    }
+    value: [Move; 2],
 }
 
 impl IntoIterator for Turn {
@@ -34,6 +17,35 @@ impl IntoIterator for Turn {
 
     fn into_iter(self) -> Self::IntoIter {
         IntoIter::into_iter(self.value.into_iter())
+    }
+}
+
+impl Turn {
+    pub fn new(white_move: Move, black_move: Move) -> Self {
+        Turn {
+            value: [white_move, black_move],
+        }
+    }
+
+    pub fn new_from_notation<S>(value: S) -> Result<Self, Error>
+    where
+        S: AsRef<str>,
+    {
+        const COLOURS: [char; 2] = ['w', 'b'];
+
+        let moves_from_str: Vec<Move> = value
+            .as_ref()
+            .split(" ")
+            .zip(COLOURS)
+            .map(|(s, c)| Move::new_from_notation(s, c))
+            .collect::<Result<Vec<Move>, Error>>()?;
+
+        Ok(Self {
+            value: [
+                *moves_from_str.get(0).unwrap(),
+                *moves_from_str.get(1).unwrap(),
+            ],
+        })
     }
 }
 
@@ -50,21 +62,19 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn new_from_notation<'a, S, C>(notation: S, colour: C) -> Result<Self, Error>
+    pub fn new_from_notation<S, C>(notation: S, colour: C) -> Result<Self, Error>
     where
-        S: Into<&'a str>,
-        C: Into<Colour>,
+        S: AsRef<str>,
+        C: Into<Colour> + Copy,
     {
-        let notation = notation.into();
-
-        let piece = PieceType::from(notation);
-        let castle = Castle::from(notation);
-        let colour = colour.into();
-        let capture = Capture::from(notation);
-        let promotion = Promotion::from(notation);
-        let check = Check::from(notation);
-        let from = None;
-        let to = None;
+        let piece: PieceType = PieceType::from_notation(&notation)?;
+        let castle: Castle = Castle::from_notation(&notation, colour);
+        let colour: Colour = colour.into();
+        let capture: Capture = Capture::from_notation(&notation);
+        let promotion: Promotion = Promotion::from_notation(&notation);
+        let check: Check = Check::from_notation(&notation);
+        let from: Option<usize> = None;
+        let to: Option<[i8; 2]> = None;
 
         Ok(Self {
             piece,
@@ -76,16 +86,16 @@ impl Move {
             from,
             to,
         }
-        .remove_ambiguity(notation)?
-        .set_destination(notation))
+        .remove_ambiguity(&notation)?
+        .set_destination(&notation))
     }
 
-    fn remove_ambiguity<'a, S>(mut self, notation: S) -> Result<Self, Error>
+    fn remove_ambiguity<S>(mut self, notation: S) -> Result<Self, Error>
     where
-        S: Into<&'a str>,
+        S: AsRef<str>,
     {
-        let notation = notation.into();
-        let length = if self.check.into() { 3 } else { 2 };
+        let notation = notation.as_ref();
+        let length = if self.check.is_check_or_mate() { 3 } else { 2 };
 
         self.from = match self.piece {
             PieceType::Pawn => {
@@ -117,24 +127,17 @@ impl Move {
         Ok(self)
     }
 
-    fn set_destination<'a, S>(mut self, notation: S) -> Self
+    fn set_destination<S>(mut self, notation: S) -> Self
     where
-        S: Into<&'a str>,
+        S: AsRef<str>,
     {
-        let notation: &str = notation.into();
         let offset: usize = self.get_offset();
 
         self.to = if let PieceType::King = self.piece {
             match self.castle {
                 Castle::No => Move::format_destination(notation, offset),
-                Castle::Short(_) => match self.colour {
-                    Colour::White => Some([5, 0]),
-                    Colour::Black => Some([5, 7]),
-                },
-                Castle::Long(_) => match self.colour {
-                    Colour::White => Some([3, 0]),
-                    Colour::Black => Some([3, 7]),
-                },
+                Castle::Short(pos) => Some([6, pos[1]]),
+                Castle::Long(pos) => Some([2, pos[1]]),
             }
         } else {
             Move::format_destination(notation, offset)
@@ -162,10 +165,13 @@ impl Move {
         offset
     }
 
-    fn format_destination(notation: &str, offset: usize) -> Option<[i8; 2]> {
+    fn format_destination<S>(notation: S, offset: usize) -> Option<[i8; 2]>
+    where
+        S: AsRef<str>,
+    {
         Some([
-            "abcdefgh".find(notation.chars().nth(offset)?)? as i8,
-            notation.chars().nth(offset + 1)?.to_digit(10)? as i8 - 1,
+            "abcdefgh".find(notation.as_ref().chars().nth(offset)?)? as i8,
+            notation.as_ref().chars().nth(offset + 1)?.to_digit(10)? as i8 - 1,
         ])
     }
 }

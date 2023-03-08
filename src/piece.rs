@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
-use crate::types::{Colour, PieceType};
+use crate::types::{Castle, Colour, PieceType};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Piece {
     pub pos: [i8; 2],
     pub piece_type: PieceType,
@@ -25,6 +25,7 @@ impl Piece {
         let pos: [i8; 2] = pos.into();
         let piece_type: PieceType = piece_type.into();
         let colour: Colour = colour.into();
+
         Self {
             pos,
             piece_type,
@@ -32,7 +33,10 @@ impl Piece {
         }
     }
 
-    pub fn get_move_tiles(&self) -> Vec<[i8; 2]> {
+    pub fn get_move_tiles<I>(&self, castle: Castle) -> Vec<I>
+    where
+        Vec<I>: From<Vec<[i8; 2]>>,
+    {
         match self.piece_type {
             PieceType::Pawn => match self.colour {
                 Colour::White => {
@@ -56,19 +60,23 @@ impl Piece {
                     }
                 }
             },
-            PieceType::King => vec![
-                [self.pos[0] + 0, self.pos[1] + 1],
-                [self.pos[0] + 1, self.pos[1] + 1],
-                [self.pos[0] + 1, self.pos[1] + 0],
-                [self.pos[0] + 1, self.pos[1] - 1],
-                [self.pos[0] + 0, self.pos[1] - 1],
-                [self.pos[0] - 1, self.pos[1] - 1],
-                [self.pos[0] - 1, self.pos[1] + 0],
-                [self.pos[0] - 1, self.pos[1] + 1],
-            ],
+            PieceType::King => match castle {
+                Castle::No => vec![
+                    [self.pos[0] + 0, self.pos[1] + 1],
+                    [self.pos[0] + 1, self.pos[1] + 1],
+                    [self.pos[0] + 1, self.pos[1] + 0],
+                    [self.pos[0] + 1, self.pos[1] - 1],
+                    [self.pos[0] + 0, self.pos[1] - 1],
+                    [self.pos[0] - 1, self.pos[1] - 1],
+                    [self.pos[0] - 1, self.pos[1] + 0],
+                    [self.pos[0] - 1, self.pos[1] + 1],
+                ],
+                Castle::Short(pos) => vec![[6, pos[1]]],
+                Castle::Long(pos) => vec![[2, pos[1]]],
+            },
             PieceType::Queen => {
                 let mut temp: Vec<[i8; 2]> = vec![];
-                for i in -7..7 {
+                for i in -8..8 {
                     temp.push([self.pos[0] + i, self.pos[1] + i]);
                     temp.push([self.pos[0] + i, self.pos[1] - i]);
                     temp.push([self.pos[0] + 0, self.pos[1] + i]);
@@ -78,7 +86,7 @@ impl Piece {
             }
             PieceType::Bishop => {
                 let mut temp: Vec<[i8; 2]> = vec![];
-                for i in -7..7 {
+                for i in -8..8 {
                     temp.push([self.pos[0] + i, self.pos[1] + i]);
                     temp.push([self.pos[0] + i, self.pos[1] - i]);
                 }
@@ -96,28 +104,34 @@ impl Piece {
             ],
             PieceType::Rook => {
                 let mut temp: Vec<[i8; 2]> = vec![];
-                for i in -7..7 {
+                for i in -8..8 {
                     temp.push([self.pos[0] + 0, self.pos[1] + i]);
                     temp.push([self.pos[0] + i, self.pos[1] + 0]);
                 }
                 temp
             }
         }
+        .into()
     }
 
-    pub fn get_capture_tiles(&self) -> Vec<[i8; 2]> {
+    pub fn get_capture_tiles<I>(&self, castle: Castle) -> Vec<I>
+    where
+        Vec<I>: From<Vec<[i8; 2]>>,
+    {
         match self.piece_type {
             PieceType::Pawn => match self.colour {
                 Colour::White => vec![
                     [self.pos[0] + 1, self.pos[1] + 1],
                     [self.pos[0] - 1, self.pos[1] + 1],
-                ],
+                ]
+                .into(),
                 Colour::Black => vec![
                     [self.pos[0] + 1, self.pos[1] - 1],
                     [self.pos[0] - 1, self.pos[1] - 1],
-                ],
+                ]
+                .into(),
             },
-            _ => self.get_move_tiles(),
+            _ => self.get_move_tiles(castle),
         }
     }
 }
