@@ -53,7 +53,6 @@ impl Turn {
 pub struct Move {
     pub piece: PieceType,
     pub castle: Castle,
-    pub colour: Colour,
     pub capture: Capture,
     pub promotion: Promotion,
     pub check: Check,
@@ -67,11 +66,10 @@ impl Move {
         S: AsRef<str>,
         C: Into<Colour> + Copy,
     {
-        let piece: PieceType = PieceType::from_notation(&notation)?;
+        let piece: PieceType = PieceType::from_notation(&notation, colour)?;
         let castle: Castle = Castle::from_notation(&notation, colour);
-        let colour: Colour = colour.into();
         let capture: Capture = Capture::from_notation(&notation);
-        let promotion: Promotion = Promotion::from_notation(&notation);
+        let promotion: Promotion = Promotion::from_notation(&notation, colour);
         let check: Check = Check::from_notation(&notation);
         let from: Option<usize> = None;
         let to: Option<[i8; 2]> = None;
@@ -79,7 +77,6 @@ impl Move {
         Ok(Self {
             piece,
             castle,
-            colour,
             capture,
             promotion,
             check,
@@ -98,7 +95,7 @@ impl Move {
         let length = if self.check.is_check_or_mate() { 3 } else { 2 };
 
         self.from = match self.piece {
-            PieceType::Pawn => {
+            PieceType::Pawn(_) => {
                 if notation.len() > length {
                     "abcdefgh".find(
                         notation
@@ -110,7 +107,7 @@ impl Move {
                     None
                 }
             }
-            PieceType::King | PieceType::Queen => None,
+            PieceType::King(_) | PieceType::Queen(_) => None,
             _ => {
                 if notation.len() > length + 1 {
                     "abcdefgh".find(
@@ -133,7 +130,7 @@ impl Move {
     {
         let offset: usize = self.get_offset();
 
-        self.to = if let PieceType::King = self.piece {
+        self.to = if let PieceType::King(_) = self.piece {
             match self.castle {
                 Castle::No => Move::format_destination(notation, offset),
                 Castle::Short(pos) => Some([6, pos[1]]),
@@ -158,7 +155,7 @@ impl Move {
             },
         };
 
-        if let PieceType::Pawn = self.piece {
+        if let PieceType::Pawn(_) = self.piece {
             offset -= 1;
         }
 

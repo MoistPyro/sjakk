@@ -14,6 +14,7 @@ use crate::turn::{Move, Turn};
 use crate::types::Capture;
 
 const GAME_FILE: &str = "game.txt";
+const GAME_LENGTH: usize = usize::MAX;
 
 #[cfg(test)]
 mod tests {
@@ -25,9 +26,8 @@ mod tests {
         let r = read_game("test_game.txt").unwrap();
         let mock_turn_1: Turn = Turn::new(
             Move {
-                piece: PieceType::Pawn,
+                piece: PieceType::Pawn(Colour::White),
                 castle: Castle::No,
-                colour: Colour::White,
                 capture: Capture::No,
                 promotion: Promotion::No,
                 check: Check::No,
@@ -35,9 +35,8 @@ mod tests {
                 to: Some([4, 3]),
             },
             Move {
-                piece: PieceType::Pawn,
+                piece: PieceType::Pawn(Colour::Black),
                 castle: Castle::No,
-                colour: Colour::Black,
                 capture: Capture::No,
                 promotion: Promotion::No,
                 check: Check::No,
@@ -76,12 +75,14 @@ mod tests {
         let i = after_move_board.find_piece_by_pos(6, 6).unwrap();
         after_move_board.pieces.remove(i);
 
-        after_move_board
-            .pieces
-            .push(Piece::new([4, 3], PieceType::Pawn, Colour::White));
-        after_move_board
-            .pieces
-            .push(Piece::new([6, 5], PieceType::Pawn, Colour::Black));
+        after_move_board.pieces.push(Piece::new(
+            [4, 3],
+            PieceType::Pawn(Colour::White),
+        ));
+        after_move_board.pieces.push(Piece::new(
+            [6, 5],
+            PieceType::Pawn(Colour::Black),
+        ));
 
         assert_eq!(
             after_move_board,
@@ -95,7 +96,7 @@ fn format_move_description(turn_number: usize, mv: &Move) -> Option<String> {
     let mut out = format!(
         "{:2}. {:?} moved {} to {}",
         turn_number + 1,
-        mv.colour,
+        mv.piece.get_colour()?,
         mv.piece,
         destination
     );
@@ -109,8 +110,6 @@ fn format_move_description(turn_number: usize, mv: &Move) -> Option<String> {
 
 fn find_moved_piece(board: &mut Board, mv: Move) -> Option<usize> {
     let piece_type_equality = |p: &&Piece| p.piece_type == mv.piece;
-
-    let colour_equality = |p: &&Piece| p.colour == mv.colour;
 
     let legal_moves_equality = |p: &&Piece| match mv.capture {
         Capture::Yes => p.get_capture_tiles(mv.castle).contains(&mv.to.unwrap()),
@@ -126,10 +125,11 @@ fn find_moved_piece(board: &mut Board, mv: Move) -> Option<usize> {
     };
 
     let blocking_piece_checker = |p: &&Piece| match p.piece_type {
-        PieceType::Pawn | PieceType::King | PieceType::Knight => true,
+        PieceType::Pawn(_) | PieceType::King(_) | PieceType::Knight(_) => true,
         _ => {
             let mut temp_board: Board = board.clone();
-            !temp_board.check_for_collisions(p.pos, mv.to.unwrap(), p.piece_type)
+
+            !temp_board.check_for_collisions(p.pos, mv.to.unwrap(), mv.piece)
         }
     };
 
@@ -137,13 +137,14 @@ fn find_moved_piece(board: &mut Board, mv: Move) -> Option<usize> {
         .pieces
         .iter()
         .filter(piece_type_equality)
-        .filter(colour_equality)
         .filter(legal_moves_equality)
         .filter(ambiguity_remover)
         .filter(blocking_piece_checker)
         .collect();
 
-    assert!(all_possible_capturers.len() == 1);
+    if all_possible_capturers.len() != 1 {
+        panic!("{} != 1", all_possible_capturers.len());
+    }
 
     board
         .pieces
@@ -187,6 +188,8 @@ fn make_a_move(mut board: Board, turn: &Turn, turn_number: usize) -> Board {
 
         let moved_piece_index: usize = find_moved_piece(&mut board, mv).unwrap();
         board = execute_move(board, moved_piece_index, mv.to.unwrap());
+        
+        println!("{}", board);
     }
 
     board
@@ -204,15 +207,11 @@ fn main() -> Result<(), Error> {
 
     let initial_board: Board = Board::default();
 
-    let final_board: Board = list_of_turns
+    let _final_board: Board = list_of_turns
         .iter()
+        .take(GAME_LENGTH)
         .enumerate()
         .fold(initial_board, |b, (i, t)| make_a_move(b, t, i));
 
-    println!("{:?}", final_board);
     Ok(())
 }
-
-/*
-programmet sjekker nå om det er brikker i veien, men kræsjer fortsatt.
-*/
