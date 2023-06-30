@@ -40,7 +40,7 @@ mod tests {
         assert_eq!(highly_spesific_case, expected_result);
 
         let negative_test = Board::get_tiles_between([7,0], [3,0]).unwrap();
-        let expected_result = vec![[4, 0], [5, 0], [6, 0]];
+        let expected_result = vec![[6, 0], [5, 0], [4, 0]];
 
         assert_eq!(negative_test, expected_result);
     }
@@ -53,7 +53,7 @@ mod tests {
 
         assert_eq!(interventions.len(), 6);
 
-        let mut empty_board = Board::blank();
+        let mut empty_board = Board::_blank();
 
         empty_board.pieces.push(Piece::new([7,0], PieceType::Rook(Colour::White)));
         empty_board.pieces.push(Piece::new([5,0], PieceType::Bishop(Colour::Black)));
@@ -119,125 +119,41 @@ impl Default for Board {
 
 impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\nX a b c d e f g h X\n")?;
-
-        let mut board_1d: [PieceType; 64] = [PieceType::Empty; 64];
-
+        
+        let mut board_1d: [PieceType; 64] = [PieceType::Empty(Colour::White); 64];
+        
         for i in 0..board_1d.len() {
             board_1d[i] = match self
-                .pieces
-                .iter()
-                .filter(|x| x.pos == [(i % 8) as i8, (i as f64 / 8.0).floor() as i8])
-                .nth(0)
+            .pieces
+            .iter()
+            .filter(|x| x.pos == [(i % 8) as i8, (i as f64 / 8.0).floor() as i8])
+            .nth(0)
             {
                 Some(p) => p.piece_type,
-                None => PieceType::Empty,
+                None => PieceType::Empty(Colour::White),
             };
         }
+        
+        let board_strs: Vec<String> = board_1d.iter().map(|p| format!("{p}")).collect();
+        
+        write!(f, "\nX a b c d e f g h X\n")?;
 
-        write!(
-            f,
-            "1 {} {} {} {} {} {} {} {} 1\n",
-            board_1d[0],
-            board_1d[1],
-            board_1d[2],
-            board_1d[3],
-            board_1d[4],
-            board_1d[5],
-            board_1d[6],
-            board_1d[7]
-        )?;
-        write!(
-            f,
-            "2 {} {} {} {} {} {} {} {} 2\n",
-            board_1d[8],
-            board_1d[9],
-            board_1d[10],
-            board_1d[11],
-            board_1d[12],
-            board_1d[13],
-            board_1d[14],
-            board_1d[15]
-        )?;
-        write!(
-            f,
-            "3 {} {} {} {} {} {} {} {} 3\n",
-            board_1d[16],
-            board_1d[17],
-            board_1d[18],
-            board_1d[19],
-            board_1d[20],
-            board_1d[21],
-            board_1d[22],
-            board_1d[23]
-        )?;
-        write!(
-            f,
-            "4 {} {} {} {} {} {} {} {} 4\n",
-            board_1d[24],
-            board_1d[25],
-            board_1d[26],
-            board_1d[27],
-            board_1d[28],
-            board_1d[29],
-            board_1d[30],
-            board_1d[31]
-        )?;
-        write!(
-            f,
-            "5 {} {} {} {} {} {} {} {} 5\n",
-            board_1d[32],
-            board_1d[33],
-            board_1d[34],
-            board_1d[35],
-            board_1d[36],
-            board_1d[37],
-            board_1d[38],
-            board_1d[39]
-        )?;
-        write!(
-            f,
-            "6 {} {} {} {} {} {} {} {} 6\n",
-            board_1d[40],
-            board_1d[41],
-            board_1d[42],
-            board_1d[43],
-            board_1d[44],
-            board_1d[45],
-            board_1d[46],
-            board_1d[47]
-        )?;
-        write!(
-            f,
-            "7 {} {} {} {} {} {} {} {} 7\n",
-            board_1d[48],
-            board_1d[49],
-            board_1d[50],
-            board_1d[51],
-            board_1d[52],
-            board_1d[53],
-            board_1d[54],
-            board_1d[55]
-        )?;
-        write!(
-            f,
-            "8 {} {} {} {} {} {} {} {} 8\n",
-            board_1d[56],
-            board_1d[57],
-            board_1d[58],
-            board_1d[59],
-            board_1d[60],
-            board_1d[61],
-            board_1d[62],
-            board_1d[63]
-        )?;
+        write!(f, "1 {} 1\n", board_strs[0..8].join(" "))?;
+        write!(f, "2 {} 2\n", board_strs[8..16].join(" "))?;
+        write!(f, "3 {} 3\n", board_strs[16..24].join(" "))?;
+        write!(f, "4 {} 4\n", board_strs[24..32].join(" "))?;
+        write!(f, "5 {} 5\n", board_strs[32..40].join(" "))?;
+        write!(f, "6 {} 6\n", board_strs[40..48].join(" "))?;
+        write!(f, "7 {} 7\n", board_strs[48..56].join(" "))?;
+        write!(f, "8 {} 8\n", board_strs[56..64].join(" "))?;
+
         write!(f, "X a b c d e f g h X\n")?;
         Ok(())
     }
 }
 
 impl Board {
-    pub fn blank() -> Self {
+    pub fn _blank() -> Self {
         Self { pieces: vec![] }
     }
 
@@ -252,22 +168,25 @@ impl Board {
         self.pieces.iter().position(|x| x == piece)
     }
 
-    fn get_tiles_between(mut a: [i8; 2], mut b: [i8; 2]) -> Option<Vec<[i8; 2]>> {
-        if a[0] > b[0] || a[1] > b[1] {
-            let temp = a;
-            a = b;
-            b = temp;
-        }
+    pub fn get_tiles_between(a: [i8; 2], b: [i8; 2]) -> Option<Vec<[i8; 2]>> {
+        let xs: Vec<i8> = if a[0] > b[0] {
+            (b[0]+1..=a[0]).rev().collect()
+        } else {
+            (a[0]..b[0]).into_iter().collect()
+        };
 
-        let xs = a[0]..b[0];
-        let ys = a[1]..b[1];
+        let ys: Vec<i8> = if a[1] > b[1] {
+            (b[1]+1..=a[1]).rev().collect()
+        } else {
+            (a[1]..b[1]).into_iter().collect()
+        };
 
         if xs.len() == 0 {
-            Some((a[1]..b[1]).map(|i| [a[0], i]).skip(1).collect())
+            Some(ys.iter().map(|i| [a[0], *i]).skip(1).collect())
         } else if ys.len() == 0 {
-            Some((a[0]..b[0]).map(|i| [i, a[1]]).skip(1).collect())
+            Some(xs.iter().map(|i| [*i, a[1]]).skip(1).collect())
         } else if xs.len() == ys.len() {
-            Some(xs.zip(ys).map(|(x, y)| [x, y]).skip(1).collect())
+            Some(xs.iter().zip(ys).map(|(x, y)| [*x, y]).skip(1).collect())
         } else {
             None
         }
@@ -295,7 +214,7 @@ impl Board {
 
                 (between.len() > 0) && (full_squares.len() > 0)
             }
-            PieceType::Empty => false,
+            PieceType::Empty(_) => false,
         }
     }
 }

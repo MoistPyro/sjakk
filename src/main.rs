@@ -3,8 +3,10 @@ mod piece;
 mod turn;
 mod types;
 
+
 use std::fs::read_to_string;
 use std::io::Error;
+use std::env::args;
 
 use types::PieceType;
 
@@ -12,9 +14,6 @@ use crate::board::Board;
 use crate::piece::Piece;
 use crate::turn::{Move, Turn};
 use crate::types::Capture;
-
-const GAME_FILE: &str = "game.txt";
-const GAME_LENGTH: usize = usize::MAX;
 
 #[cfg(test)]
 mod tests {
@@ -24,26 +23,28 @@ mod tests {
     #[test]
     fn test_read_game() {
         let r = read_game("test_game.txt").unwrap();
-        let mock_turn_1: Turn = Turn::new(
-            Move {
-                piece: PieceType::Pawn(Colour::White),
-                castle: Castle::No,
-                capture: Capture::No,
-                promotion: Promotion::No,
-                check: Check::No,
-                from: None,
-                to: Some([4, 3]),
-            },
-            Move {
-                piece: PieceType::Pawn(Colour::Black),
-                castle: Castle::No,
-                capture: Capture::No,
-                promotion: Promotion::No,
-                check: Check::No,
-                from: None,
-                to: Some([3, 5]),
-            },
-        );
+        let mock_turn_1 = Turn {
+            value: [
+                Move {
+                    piece: PieceType::Pawn(Colour::White),
+                    castle: Castle::No,
+                    capture: Capture::No,
+                    promotion: Promotion::No,
+                    check: Check::No,
+                    from: None,
+                    to: Some([4, 3]),
+                },
+                Move {
+                    piece: PieceType::Pawn(Colour::Black),
+                    castle: Castle::No,
+                    capture: Capture::No,
+                    promotion: Promotion::No,
+                    check: Check::No,
+                    from: None,
+                    to: Some([3, 5]),
+                },
+            ]
+        };
 
         assert_eq!(r.iter().nth(0).unwrap(), &mock_turn_1);
     }
@@ -86,26 +87,9 @@ mod tests {
 
         assert_eq!(
             after_move_board,
-            make_a_move(default_board, &Turn::new_from_notation("e4 g6").unwrap(), 0)
+            make_a_move(default_board, &Turn::new_from_notation("e4 g6").unwrap())
         );
     }
-}
-
-fn format_move_description(turn_number: usize, mv: &Move) -> Option<String> {
-    let destination: String = format!("{}, {}", mv.to?[0], mv.to?[1]);
-    let mut out = format!(
-        "{:2}. {:?} moved {} to {}",
-        turn_number + 1,
-        mv.piece.get_colour()?,
-        mv.piece,
-        destination
-    );
-
-    if mv.check.is_check_or_mate() {
-        out += &format!("  {:?}", mv.check)
-    }
-
-    Some(out)
 }
 
 fn find_moved_piece(board: &mut Board, mv: Move) -> Option<usize> {
@@ -160,10 +144,8 @@ fn execute_move(mut board: Board, index: usize, to: [i8; 2]) -> Board {
     board
 }
 
-fn make_a_move(mut board: Board, turn: &Turn, turn_number: usize) -> Board {
-    for mv in *turn {
-        println!("{}", format_move_description(turn_number, &mv).unwrap());
-
+fn make_a_move(mut board: Board, turn: &Turn) -> Board {
+    for mv in turn.value {
         // If this is a castle, find and move the Rook.
         match mv.castle {
             types::Castle::No => (),
@@ -188,8 +170,6 @@ fn make_a_move(mut board: Board, turn: &Turn, turn_number: usize) -> Board {
 
         let moved_piece_index: usize = find_moved_piece(&mut board, mv).unwrap();
         board = execute_move(board, moved_piece_index, mv.to.unwrap());
-        
-        println!("{}", board);
     }
 
     board
@@ -203,15 +183,26 @@ fn read_game(path: &str) -> Result<Vec<Turn>, Error> {
 }
 
 fn main() -> Result<(), Error> {
-    let list_of_turns: Vec<Turn> = read_game(GAME_FILE)?;
+    let mut args = args();
 
+    let game_file: String = args.nth(1).unwrap_or(String::new());
+
+    let game_length: usize = match args.next() {
+        Some(a) => match a.parse::<usize>() {
+            Ok(a) => a,
+            Err(_) => usize::MAX,
+        },
+        None => usize::MAX,
+    };
+
+    let list_of_turns: Vec<Turn> = read_game(&game_file).unwrap_or(vec![]);
     let initial_board: Board = Board::default();
 
-    let _final_board: Board = list_of_turns
+    let final_board: Board = list_of_turns
         .iter()
-        .take(GAME_LENGTH)
-        .enumerate()
-        .fold(initial_board, |b, (i, t)| make_a_move(b, t, i));
+        .take(game_length)
+        .fold(initial_board, |b, t| make_a_move(b, t));
 
+    println!("{}", final_board);
     Ok(())
 }

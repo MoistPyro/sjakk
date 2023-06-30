@@ -3,8 +3,12 @@ use std::{
     io::{Error, ErrorKind},
 };
 
-const _WHITE_PIECES: &str = "♙♔♕♗♘♖";
-const _BLACK_PIECES: &str = "♟♚♛♝♞♜";
+const WHITE_PIECES: &str = "♙♔♕♗♘♖";
+const BLACK_PIECES: &str = "♟♚♛♝♞♜";
+
+fn get_symbol(options: &str, i: usize) -> String {
+    options.chars().nth(i).unwrap().to_string()
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PieceType {
@@ -14,7 +18,7 @@ pub enum PieceType {
     Bishop(Colour),
     Knight(Colour),
     Rook(Colour),
-    Empty,
+    Empty(Colour),
 }
 
 impl Debug for PieceType {
@@ -26,27 +30,33 @@ impl Debug for PieceType {
             Self::Bishop(_) => write!(f, "B"),
             Self::Knight(_) => write!(f, "N"),
             Self::Rook(_) => write!(f, "R"),
-            Self::Empty => write!(f, " "),
+            Self::Empty(_) => write!(f, " "),
         }
     }
 }
 
 impl Display for PieceType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Pawn(Colour::White) => write!(f, "♙"),
-            Self::Pawn(Colour::Black) => write!(f, "♟"),
-            Self::King(Colour::White) => write!(f, "♔"),
-            Self::King(Colour::Black) => write!(f, "♚"),
-            Self::Queen(Colour::White) => write!(f, "♕"),
-            Self::Queen(Colour::Black) => write!(f, "♛"),
-            Self::Bishop(Colour::White) => write!(f, "♗"),
-            Self::Bishop(Colour::Black) => write!(f, "♝"),
-            Self::Knight(Colour::White) => write!(f, "♘"),
-            Self::Knight(Colour::Black) => write!(f, "♞"),
-            Self::Rook(Colour::White) => write!(f, "♖"),
-            Self::Rook(Colour::Black) => write!(f, "♜"),
-            Self::Empty => write!(f, " "),
+        write!(f, "{}", String::from(self))
+    }
+}
+
+impl From<&PieceType> for String {
+    fn from(piece: &PieceType) -> Self {
+        match piece {
+            PieceType::Pawn(Colour::White) => get_symbol(WHITE_PIECES, 0),
+            PieceType::Pawn(Colour::Black) => get_symbol(BLACK_PIECES, 0),
+            PieceType::King(Colour::White) => get_symbol(WHITE_PIECES, 1),
+            PieceType::King(Colour::Black) => get_symbol(BLACK_PIECES, 1),
+            PieceType::Queen(Colour::White) => get_symbol(WHITE_PIECES, 2),
+            PieceType::Queen(Colour::Black) => get_symbol(BLACK_PIECES, 2),
+            PieceType::Bishop(Colour::White) => get_symbol(WHITE_PIECES, 3),
+            PieceType::Bishop(Colour::Black) => get_symbol(BLACK_PIECES, 3),
+            PieceType::Knight(Colour::White) => get_symbol(WHITE_PIECES, 4),
+            PieceType::Knight(Colour::Black) => get_symbol(BLACK_PIECES, 4),
+            PieceType::Rook(Colour::White) => get_symbol(WHITE_PIECES, 5),
+            PieceType::Rook(Colour::Black) => get_symbol(BLACK_PIECES, 5),
+            PieceType::Empty(_) => " ".to_string(),
         }
     }
 }
@@ -123,15 +133,15 @@ impl PieceType {
         ))
     }
 
-    pub fn get_colour(&self) -> Option<Colour> {
+    pub fn get_colour(&self) -> Colour {
         match self {
             PieceType::Pawn(c)
             | PieceType::King(c)
             | PieceType::Queen(c)
             | PieceType::Bishop(c)
             | PieceType::Knight(c)
-            | PieceType::Rook(c) => Some(*c),
-            PieceType::Empty => None,
+            | PieceType::Rook(c)
+            | PieceType::Empty(c) => *c,
         }
     }
 }

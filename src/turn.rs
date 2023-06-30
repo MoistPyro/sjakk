@@ -1,32 +1,13 @@
-use std::{
-    array::IntoIter,
-    io::{Error, ErrorKind},
-};
+use std::io::{Error, ErrorKind};
 
 use crate::types::{Capture, Castle, Check, Colour, PieceType, Promotion};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Turn {
-    value: [Move; 2],
-}
-
-impl IntoIterator for Turn {
-    type Item = Move;
-
-    type IntoIter = std::array::IntoIter<Move, 2>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        IntoIter::into_iter(self.value.into_iter())
-    }
+    pub value: [Move; 2],
 }
 
 impl Turn {
-    pub fn new(white_move: Move, black_move: Move) -> Self {
-        Turn {
-            value: [white_move, black_move],
-        }
-    }
-
     pub fn new_from_notation<S>(value: S) -> Result<Self, Error>
     where
         S: AsRef<str>,

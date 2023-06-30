@@ -119,7 +119,7 @@ impl Piece {
                 }
                 temp
             }
-            PieceType::Empty => panic!("hit empty variant."),
+            PieceType::Empty(_) => panic!("hit empty variant."),
         }
         .into()
     }
